@@ -3,16 +3,33 @@
 import sys
 from datetime import date, datetime, timedelta
 from calendar import day_abbr
-from collections import defaultdict, namedtuple
+from collections import defaultdict
+from enum import Enum
+from typing import NamedTuple, List
 from json import loads
 from os import getenv, path
 from re import sub
 from statistics import median
 
+Mode = Enum("Mode", "FAST SLOW NORMAL", start=0)
 
-def render(calendar):
-    for weekday_hit in calendar["hits"]:
-        print("".join(["░" for hit in weekday_hit]))
+
+class Typo(NamedTuple):
+    expected: str
+    actual: str
+
+
+class Stat(NamedTuple):
+    text: str
+    started_at: datetime
+    finished_at: datetime
+    errors: int
+    typos: List[Typo]
+    mode: Mode
+    seconds: float
+    cps: float
+    wpm: float
+    version: int
 
 
 def _to_datetime(iso):
@@ -25,22 +42,26 @@ def read_stats(stats_file):
     with open(stats_file) as f:
         for line in f:
             stat = loads(line)
-            yield {
-                **stat,
-                "started_at": _to_datetime(stat["started_at"]),
-                "finished_at": _to_datetime(stat["finished_at"]),
-            }
+            stat.update(
+                {
+                    "started_at": _to_datetime(stat["started_at"]),
+                    "finished_at": _to_datetime(stat["finished_at"]),
+                    "mode": Mode(stat["mode"]),
+                    "typos": [Typo(**t) for t in stat["typos"]],
+                }
+            )
+            yield Stat(**stat)
 
 
-def year_hitmap(day, stats):
+def hitmap(day, stats):
     begin = day - timedelta(days=182)
     last_monday = day - timedelta(day.weekday())
     first_monday = begin - timedelta(begin.weekday())
     hitmap = defaultdict(set)
 
     for stat in stats:
-        if begin <= stat["started_at"].date() <= day:
-            hitmap[stat["started_at"].isocalendar()].add(stat["text"])
+        if begin <= stat.started_at.date() <= day:
+            hitmap[stat.started_at.isocalendar()].add(stat.text)
 
     return {
         "data": hitmap,
@@ -48,6 +69,7 @@ def year_hitmap(day, stats):
         "nb_weeks": (last_monday - first_monday).days // 7,
         "start": first_monday,
     }
+
 
 def render_hitmap(hitmap):
     (y1, w1, _) = hitmap["start"].isocalendar()
