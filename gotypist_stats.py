@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 from calendar import day_abbr
 from collections import defaultdict
 from enum import Enum
+from functools import reduce
 from typing import NamedTuple, List
 from json import loads
 from os import getenv, path
@@ -38,14 +39,14 @@ def _to_datetime(iso):
     return datetime.strptime(parsable, "%Y-%m-%dT%H:%M:%S.%f|%z")
 
 
-def _human_duration(start, end):
-    secs = int((end - start).total_seconds())
+def _human_duration(delta):
+    secs = delta.total_seconds()
     if secs <= 120:
         return f"{secs} seconds"
     elif secs <= 3600 * 2:
-        return f"~{secs // 60} minutes"
+        return f"{secs // 60:.0f} minutes {secs % 60:0.0f}s"
     else:
-        return f"~{secs // 3600} hours"
+        return f"{secs // 3600:.0f} hours {(secs % 3600)//60:0.0f}min"
 
 
 def read_stats(stats_file):
@@ -96,6 +97,20 @@ def render_hitmap(hitmap):
         print(f"{day_abbr[day]} {line}")
 
 
+def training_time(day, stats):
+    duration = reduce(
+        lambda total, diff: total + diff,
+        [s.finished_at - s.started_at for s in stats],
+        timedelta(),
+    )
+    return _human_duration(duration)
+
+
+def render_training_time(duration):
+    print("\n🟄 Total training time 🟄")
+    print(duration)
+
+
 def typo_record(day, stats):
     return sorted(stats, key=lambda s: s.errors, reverse=True)[0]
 
@@ -103,10 +118,10 @@ def typo_record(day, stats):
 def render_typo_record(worse):
     print("\n🟄 Highest number of typos 🟄")
     print(
-        f"""{worse.errors} errors\
+        f"""{worse.errors} attempt\
  when typing ʺ{worse.text}ʺ\
  in {worse.mode.name.lower()} mode\
- on {worse.started_at.strftime("%b %m %Y")}. It took {_human_duration(worse.started_at, worse.finished_at)}"""
+ on {worse.started_at.strftime("%b %m %Y")}.\nIt took {_human_duration(worse.finished_at - worse.started_at)}"""
     )
 
 
@@ -141,5 +156,6 @@ if __name__ == "__main__":
     stats = list(read_stats(stats_file))
 
     render_hitmap(hitmap(today, stats))
+    render_training_time(training_time(today, stats))
     render_typo_record(typo_record(today, stats))
     render_common_typos(*common_typos(today, stats))
