@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name="gotypist-stats",
-    version="0.0.2",
+    version="1.0.0",
     python_requires=">=3.6",
     packages=["gotypist_stats"],
     entry_points={"console_scripts": ["gotypist-stats = gotypist_stats.gotypist_stats:main"]},
