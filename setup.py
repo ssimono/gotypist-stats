@@ -3,10 +3,10 @@ from setuptools import setup
 
 setup(
     name="gotypist-stats",
-    version="1.0.0",
+    version="1.0.1",
     python_requires=">=3.6",
     packages=["gotypist_stats"],
-    entry_points={"console_scripts": ["gotypist-stats = gotypist_stats.gotypist_stats:main"]},
+    entry_points={"console_scripts": ["gotypist-stats = gotypist_stats.__main__:main"]},
     install_requires=["tabulate"],
     extras_require={"dev": ["mypy", "pyflakes", "black"]},
     license="MIT",
