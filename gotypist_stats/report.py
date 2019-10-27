@@ -197,7 +197,7 @@ def cps_progress(stats: Seq[Stat]) -> Report:
         "Characters per second (slow mode)",
         tabulate(
             data,
-            headers=("Month", "Median cps", "Plot", "Sessions..."),
+            headers=("Month", "Median cps", "Plot", "Sessions"),
             tablefmt="simple",
         ),
     )
