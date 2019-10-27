@@ -3,10 +3,15 @@ from calendar import day_abbr
 from collections import defaultdict
 from enum import Enum
 from functools import reduce
-from typing import NamedTuple, List, Sequence as Seq, Dict
+from typing import NamedTuple, List, Sequence as Seq, Dict, Tuple
 from statistics import median
 
+import tabulate as tb
 from tabulate import tabulate
+
+tb.PRESERVE_WHITESPACE = True
+
+from .helper import quantiles_38
 
 Mode = Enum("Mode", "FAST SLOW NORMAL")
 
@@ -42,6 +47,28 @@ def _human_duration(delta: timedelta) -> str:
         return f"{secs // 60:.0f} minutes {secs % 60:0.0f}s"
     else:
         return f"{secs // 3600:.0f} hours {(secs % 3600)//60:0.0f}min"
+
+
+def _box_plot(start: int, q25: int, med: int, q75: int, end: int) -> str:
+    conditions = (
+        (lambda i: i < start, " "),
+        (lambda i: i == med, "▣"),
+        (lambda i: i == start, "├"),
+        (lambda i: i == end, "┤"),
+        (lambda i: i >= q25 and i < med, "□"),
+        (lambda i: i > med and i <= q75, "□"),
+        (lambda i: i > start and i < q25, "─"),
+        (lambda i: i > q75 and i < end, "─"),
+    )
+
+    plot = ""
+    for i in range(end + 1):
+        for cond, char in conditions:
+            if cond(i):
+                plot += char
+                break
+
+    return plot
 
 
 def hitmap(today: date, stats: Seq[Stat]) -> Report:
@@ -131,5 +158,46 @@ def common_typos(stats: Seq[Stat]) -> Report:
             headers=("Typo", "Mistakes", "% of mistakes"),
             tablefmt="simple",
             showindex=range(1, len(values) + 1),  # default value confuses type checker
+        ),
+    )
+
+
+def cps_progress(stats: Seq[Stat]) -> Report:
+    cps: Dict[Tuple, List[float]] = defaultdict(list)
+    for s in stats:
+        if s.mode == Mode.SLOW:
+            cps[(s.started_at.year, s.started_at.month)].append(s.cps)
+
+    plot_input = [
+        {
+            "year": year,
+            "month": month,
+            "points": [min(cps), *quantiles_38(cps, n=4), max(cps)],
+            "count": len(cps),
+        }
+        for ((year, month), cps) in cps.items()
+    ]
+
+    global_max = max(v["points"][-1] for v in plot_input)
+    screen_width = 30
+    scale = lambda min, max, width, value: width * float(value) / abs(max - min)
+    screen_pos = lambda value: int(scale(0, global_max, screen_width, value))
+
+    data = [
+        (
+            f"{datetime(input['year'], input['month'], 1).strftime('%b %Y')}",
+            f"{input['points'][2]:.2}",
+            _box_plot(*map(screen_pos, input["points"])),
+            input["count"],
+        )
+        for input in plot_input
+    ]
+
+    return Report(
+        "Characters per second (slow mode)",
+        tabulate(
+            data,
+            headers=("Month", "Median cps", "Plot", "Sessions..."),
+            tablefmt="simple",
         ),
     )
