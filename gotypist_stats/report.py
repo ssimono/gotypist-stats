@@ -163,10 +163,10 @@ def common_typos(stats: Seq[Stat]) -> Report:
 
 
 def cps_progress(stats: Seq[Stat]) -> Report:
-    cps: Dict[Tuple, List[float]] = defaultdict(list)
+    monthly_cps: Dict[Tuple, List[float]] = defaultdict(list)
     for s in stats:
         if s.mode == Mode.SLOW:
-            cps[(s.started_at.year, s.started_at.month)].append(s.cps)
+            monthly_cps[(s.started_at.year, s.started_at.month)].append(s.cps)
 
     plot_input = [
         {
@@ -175,10 +175,11 @@ def cps_progress(stats: Seq[Stat]) -> Report:
             "points": [min(cps), *quantiles_38(cps, n=4), max(cps)],
             "count": len(cps),
         }
-        for ((year, month), cps) in cps.items()
+        for ((year, month), cps) in monthly_cps.items()
+        if len(cps) >= 2
     ]
 
-    global_max = max(v["points"][-1] for v in plot_input)
+    global_max = max((v["points"][-1] for v in plot_input), default=0)
     screen_width = 30
     scale = lambda min, max, width, value: width * float(value) / abs(max - min)
     screen_pos = lambda value: int(scale(0, global_max, screen_width, value))
@@ -196,8 +197,6 @@ def cps_progress(stats: Seq[Stat]) -> Report:
     return Report(
         "Characters per second (slow mode)",
         tabulate(
-            data,
-            headers=("Month", "Median cps", "Plot", "Sessions"),
-            tablefmt="simple",
+            data, headers=("Month", "Median cps", "Plot", "Sessions"), tablefmt="simple"
         ),
     )
