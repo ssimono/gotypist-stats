@@ -8,4 +8,4 @@ check:
 publish:
 	rm -rf dist
 	python3 setup.py sdist
-	twine upload --repository-url https://upload.pypi.org/legacy/ dist/gotypist-stats-*.tar.gz
+	twine upload -u __token__ --repository-url https://upload.pypi.org/legacy/ dist/gotypist-stats-*.tar.gz
