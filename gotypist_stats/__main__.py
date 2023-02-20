@@ -19,7 +19,8 @@ from .report import (
 
 
 def _to_datetime(iso: str) -> datetime:
-    parsable = sub(r"([\d\-T:]{19}\.\d{6})\d+([+\-]\d{2}):(\d{2})", "\\1|\\2\\3", iso)
+    parsable = sub(r"([\d\-T:]{19}\.\d{6})\d*([+\-]\d{2}):(\d{2})", "\\1|\\2\\3", iso)
+    print(parsable)
 
     return datetime.strptime(parsable, "%Y-%m-%dT%H:%M:%S.%f|%z")
 
